@@ -53,8 +53,8 @@ class MultHeadAttention(nn.Module):
         return x.view(batch_size, seq_len, self.num_head, self.d_k).transpose(1, 2)
 
     def Combine_head(self, x):
-        batch_size, seq_len, d_model = x.size()
-        return x.transpose(1, 2).contiguous().view(batch_size, seq_len, d_model)  # contiguous为浅拷贝 与源数据公用一个内存
+        batch_size, num_head, seq_len, d_k = x.size()
+        return x.transpose(1, 2).contiguous().view(batch_size, seq_len, d_k*num_head)  # contiguous为浅拷贝 与源数据公用一个内存
 
         # 输出后的x.shape(batch_size,seq_len,d_model)
 
@@ -96,13 +96,13 @@ class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_len):
         super(PositionalEncoding, self).__init__()
         self.d_model = d_model
-        position = torch.arange(0, max_len, dtype=torch.float64)
-        Formula = np.exp(torch.arange(0, d_model) * (-math.log(10000) / d_model))
+        position = torch.arange(0, max_len, dtype=torch.float64).unsqueeze(1)
+        Formula = torch.exp(torch.arange(0, d_model,2) * (-math.log(10000) / d_model))
         self.pe = torch.zeros(max_len, d_model)
-        self.pe[:, 0::2] = np.sin(position * Formula)
-        self.pe[:, 1::2] = np.cos(position * Formula)
+        self.pe[:, 0::2] = torch.sin(position.T * Formula)
+        self.pe[:, 1::2] = torch.cos(position.T * Formula)
 
-    def Forward(self, x):
+    def forward(self, x):
         return x + self.pe[:x.size(1), :]
 
     """
@@ -133,7 +133,7 @@ class Encoder(nn.Module):
         :param mask:
         :return:
         """
-        attention = self.attention.forward(x, x, x, mask)
+        attention = self.attention(x, x, x, mask)
         x = self.Norm(x + self.drop(attention))
 
         out = self.FeedForward(x)
@@ -164,12 +164,12 @@ class Decoder(nn.Module):
             encoder_output: (batch, src_len, d_model) - 编码器输出
     """
 
-    def forward(self, x, decoder_state, encoder_output, mask):
+    def forward(self, x, encoder_output,src_mask , mask):
         attention = self.attention(x, x, x, mask)
         x = self.Norm(x + self.drop(attention))
 
-        cross_attention = self.Cross_attention(decoder_state, encoder_output, encoder_output, mask)
-        x = self.Norm(x + self.drop(cross_attention))
+        cross_attention = self.Cross_attention(x,encoder_output,encoder_output,src_mask)
+        x = self.Norm1(x + self.drop(cross_attention))
 
         Feed_out = self.FeedForward(x)
         x = self.Norm2(x + self.drop(Feed_out))
@@ -185,14 +185,14 @@ class Transformer(nn.Module):
 
     """
 
-    def __init__(self, d_model, num_head, dropout, d_ff, out_size, max_len, Input_size, Out_size, num_layers, Dropout):
-        super(Transformer).__init__()
+    def __init__(self, d_model, num_head,dropout, d_ff, out_size, max_len, Input_size, Out_size, num_layers, Dropout):
+        super().__init__()
         self.encoder = nn.Embedding(Input_size, d_model)
         self.decoder = nn.Embedding(Out_size, d_model)
         self.encoder_layers = nn.ModuleList(
-            [Encoder(d_model, num_head, d_ff, dropout) for _ in range(num_layers)])
+            [Encoder(d_model, dropout, d_ff,num_head) for _ in range(num_layers)])
         self.decoder_layers = nn.ModuleList(
-            [Decoder(d_model, num_head, d_ff, dropout) for _ in range(num_layers)])
+            [Decoder(d_model,dropout , d_ff,num_head) for _ in range(num_layers)])
         self.position = PositionalEncoding(d_model, max_len)
         self.output = nn.Linear(d_model, out_size)
         self.dropout = nn.Dropout(Dropout)
@@ -202,7 +202,7 @@ class Transformer(nn.Module):
         decoder_mask = (mask_decoder != 0).unsqueeze(1).unsqueeze(3)
 
         seq_length = mask_decoder.size(1)
-        future_mask = (torch.tril(torch.ones(1, 1, seq_length, seq_length), diagonal=-1)).bool()  # tril 不使用默认值则不保留对角线
+        future_mask = (torch.tril(torch.ones(1, 1, seq_length, seq_length), diagonal=0)).bool()  # tril 不使用默认值则不保留对角线
         # 负数是指往左下方移动对角线既下三角
         decoder_mask = future_mask & decoder_mask
 
@@ -219,7 +219,7 @@ class Transformer(nn.Module):
         de_output = self.dropout(self.position(self.decoder(decoder)))
         de_sample = de_output
         for j in self.decoder_layers:
-            de_sample = j(de_output, output, encoder_mask, decoder_mask)
+            de_sample = j(de_sample, sample, encoder_mask, decoder_mask)
 
         Result = self.output(de_sample)
 
