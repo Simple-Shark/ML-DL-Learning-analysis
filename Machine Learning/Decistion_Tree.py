@@ -72,7 +72,7 @@ class Decision_Tree():
         :return:
         """
 
-        best_gini=-1
+        best_gini=1e+7
         best_feature=None
         best_threshold=None
 
@@ -87,7 +87,7 @@ class Decision_Tree():
                 if len(left)==0 or len(right)==0:
                     continue
                 gini_coefficient=self.calculate_Gini_Coefficient(y,num_sample,left,right)
-                if gini_coefficient > best_gini:
+                if gini_coefficient < best_gini:
                     best_gini = gini_coefficient
                     best_feature = feature
                     best_threshold = threshold
