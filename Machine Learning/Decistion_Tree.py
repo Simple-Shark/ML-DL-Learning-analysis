@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+
 
 """--------决策树算法实现
     1.基于cart决策树 利用基尼不纯值对数据进行分裂
@@ -15,31 +15,26 @@ class TreeNode():
         self.value=value
 
 class Decision_Tree():
-    def __init__(self,max_depth=None,min_samples_split=2,min_samples_leaf=1,ccp_alpha=None):
+    def __init__(self,max_depth=8,min_samples_split=2,min_samples_leaf=1,ccp_alpha=None):
         self.max_depth=max_depth
         self.min_samples_split=min_samples_split
         self.min_samples_leaf=min_samples_leaf
         self.ccp_alpha=ccp_alpha
         self.root=None
-    def __initialize__(self,x,y):
-        num_label=y.shape
-        num_sample=x.shape[0]
-        num_feature=x.shape[1]
-        return num_sample,num_feature,num_label
+
     def get_unique_label(self,x):   #获取单列特征或样本的 类别,及对应的个数
-        label_list = list(set(x))
         values, count = np.unique(x, return_counts=True)
         dic = dict(zip(values, count))
-        return label_list,dic           #返回类别列表 ,以及对应类别的字典
+        return values,dic           #返回类别列表 ,以及对应类别的字典
     """-------计算目标基尼值----------
         公式:基尼值 = 1 - (类别1占比的平方 + 类别2占比的平方 + ... + 类别k占比的平方)
     """
     def calculate_gini(self,y,num_sample):
         label_list,dic=self.get_unique_label(y)               #获取y的字典 统计类别个数计算类别占比
-        sum=0
+        summary=0
         for i in label_list:
-            sum+=dic[i]*dic[i]
-        return 1-sum/(num_sample*num_sample)
+            summary+=dic[i]*dic[i]
+        return 1-summary/(num_sample*num_sample)
 
     def calculate_Gini_Coefficient(self,y,n_dimension,left_index,right_index):
         """
@@ -60,8 +55,8 @@ class Decision_Tree():
         right_len=len(right_index)
         gini1=self.calculate_gini(y[left_index],left_len)
         gini2=self.calculate_gini(y[right_index],right_len)
-        sum=(gini1*left_len+gini2*right_len)/n_dimension
-        return sum
+        summary=(gini1*left_len+gini2*right_len)/n_dimension
+        return summary
     def best_split(self, x, y):
         """
             决策函数 将特征列中各个分类进行各个计算得出最佳决策点 最优基尼指数
@@ -71,8 +66,9 @@ class Decision_Tree():
         :param y:
         :return:
         """
-
-        best_gini=1e+7
+        if x<self.min_samples_leaf:
+            return None,None,None
+        best_gini=np.inf
         best_feature=None
         best_threshold=None
 
@@ -80,7 +76,13 @@ class Decision_Tree():
         num_sample=x.shape[0]
 
         for feature in range(num_feature):
-            thresholds=list(set(x[:,feature]))
+            thresholds = []
+            # thresholds=np.unique(x[:,feature]) 这样写容易冗余做一些多余判断
+            list_=np.unique(x[:,feature])
+            size=len(list_)
+            for i in range(size-1):
+                thresholds.append((list_[i]+list_[i+1])/2)
+
             for threshold in thresholds:
                 left=np.where(x[:,feature]<=threshold)[0]
                 right=np.where(x[:,feature]>threshold)[0]
@@ -94,9 +96,9 @@ class Decision_Tree():
 
         return best_feature, best_threshold, best_gini
 
-    def build_tree(self,x,y):
+    def build_tree(self,x,y,depth):
         """
-            基于上述代码实现 构建一个二叉树达成决策树的主要功能框架
+            基于上述代码实现 构建一个 二叉树达成决策树的主要功能框架
         :param x:
         :param y:
         :return:
@@ -104,13 +106,26 @@ class Decision_Tree():
 
         if len(np.unique(y))==1:
             return TreeNode(value=y[0])
+
+        values, counts = np.unique(y, return_counts=True)
+        majority_class = values[np.argmax(counts)]
+
+        if x.shape[0]<self.min_samples_split:
+            return TreeNode(value=majority_class)
+
+        if depth>=self.max_depth:
+            return TreeNode(value=majority_class)
+
         best_feature, best_threshold, best_gini = self.best_split(x, y)
+
+        if best_feature is None:
+            return TreeNode(value=majority_class)
         #获取左右子树的特征索引
         left_index=np.where(x[:,best_feature]<=best_threshold)[0]
         right_index=np.where(x[:,best_feature]>best_threshold)[0]
         #后序递归构建二叉树
-        left_sub=self.build_tree(x[left_index],y[left_index])
-        right_sub=self.build_tree(x[right_index],y[right_index])
+        left_sub=self.build_tree(x[left_index],y[left_index],depth+1)
+        right_sub=self.build_tree(x[right_index],y[right_index],depth+1)
 
         return  TreeNode(feature=best_feature,threshold=best_threshold
                          ,left=left_sub,right=right_sub)
@@ -123,12 +138,12 @@ class Decision_Tree():
     def fit(self,Feature,label):
         Feature=np.array(Feature)
         label=np.array(label)
-        self.root=self.build_tree(Feature,label)
+        self.root=self.build_tree(Feature,label,0)
         return self
 
     def predict(self,Feature):
         if self.root is None:
-            return -1
+            return
         predictions=np.empty(len(Feature))
         Feature=np.array(Feature)
         for i,x in enumerate(Feature):
@@ -151,7 +166,8 @@ class Decision_Tree():
             return self._predict_single(x, node.right)
 
 
-
+if __name__=='__main__':
+     pass
 
 
 

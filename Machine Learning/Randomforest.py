@@ -59,7 +59,8 @@ class RandomForest:
         for i in range(self.n_estimators):
             #获取索引数组
             index=self.__index_generator(y,i)
-            index=np.unique(index)
+            index = np.concatenate(index)
+            index = np.unique(index)
             Feature=x[index,:]
             label=y[index]
             self.trees_data.append([Feature,label])
@@ -82,17 +83,26 @@ class RandomForest:
         :param y: label 类别或者目标值
         :return: 返回self.tree
         """
-        pass
+        self.sampling_with_replacement(x, y)
+        for i in range(self.n_estimators):
+            Tree=Decision_Tree()
+            Tree.fit(self.trees_data[i][0],self.trees_data[i][1])
+            self.trees.append(Tree)
 
     def predict(self, x):
-        pass
+        answer=[]
+        for i in range(self.n_estimators):
+            answer.append(self.trees[i].predict(x))
+        return max(set(answer), key=answer.count)
+
 
 
 if __name__ == '__main__':
     x=np.random.random(size=(1,100,3))
     y=np.random.randint(size=(1,100),high=100,low=0)
 
-
-    model = RandomForest(n_estimators=100, max_depth=5, same_rate=0.5)
-    A=model.sampling_with_replacement(x,y)
+    x_test=np.random.random(size=(1,100,3))
+    model = RandomForest(n_estimators=10, max_depth=5, same_rate=0.5)
+    model.fit(x,y)
+    A=model.predict(x_test)
     print(A)
