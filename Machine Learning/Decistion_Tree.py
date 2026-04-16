@@ -66,14 +66,14 @@ class Decision_Tree():
         :param y:
         :return:
         """
-        if x<self.min_samples_leaf:
+        num_sample = x.shape[0]
+        if num_sample <= self.min_samples_leaf:
             return None,None,None
         best_gini=np.inf
         best_feature=None
         best_threshold=None
 
         num_feature=x.shape[1]
-        num_sample=x.shape[0]
 
         for feature in range(num_feature):
             thresholds = []
@@ -86,7 +86,7 @@ class Decision_Tree():
             for threshold in thresholds:
                 left=np.where(x[:,feature]<=threshold)[0]
                 right=np.where(x[:,feature]>threshold)[0]
-                if len(left)==0 or len(right)==0:
+                if len(left) < self.min_samples_leaf or len(right) < self.min_samples_leaf:
                     continue
                 gini_coefficient=self.calculate_Gini_Coefficient(y,num_sample,left,right)
                 if gini_coefficient < best_gini:
@@ -137,7 +137,11 @@ class Decision_Tree():
     """
     def fit(self,Feature,label):
         Feature=np.array(Feature)
-        label=np.array(label)
+        label=np.array(label).reshape(-1)
+        if Feature.ndim != 2:
+            raise ValueError("Feature must be a 2D array with shape (n_samples, n_features).")
+        if Feature.shape[0] != label.shape[0]:
+            raise ValueError("Feature and label must contain the same number of samples.")
         self.root=self.build_tree(Feature,label,0)
         return self
 

@@ -43,9 +43,16 @@ class RandomForest:
         rng = np.random.default_rng(seed)
         for index, value in enumerate(label_list):
             label_index_list.append(np.where(y == value)[0])
-        for i, values in enumerate(label_index_list):
-            size = max(1, int(dic[label_list[i]] * self.same_rate))
-            index_list.append(rng.choice(values, size=size))
+        if self.data_sampling == "replacement":
+            for i, values in enumerate(label_index_list):
+
+                size = max(1, int(dic[label_list[i]] * self.same_rate))
+                index_list.append(rng.choice(values, size=size))
+        else:
+            for i ,values in enumerate(label_index_list):
+                size=max(1,int(dic[label_list[i]]//self.n_estimators))
+                for j in range(size):
+                    index_list.append(values[size*j:size*(j+1)])   #获取一个不放回随机抽样的样本索引
         return index_list
 
     def sampling_with_replacement(self,x,y):#实现不同学习器进行放回抽样
@@ -69,11 +76,18 @@ class RandomForest:
 
 
     def sampling_without_replacement(self,x,y):#实现不同学习器的不放回抽样
+        #对每个样本按顺序抽样
+        """
+            对每个类别样本每个学习器完成
+            (n_sample//self.n_estimators)个的抽取
+        :param x:
+        :param y:
+        :return:
+        """
+
         n_list=[]
         for i in range(self.n_estimators):
             pass
-
-
 
     def fit(self, x, y):
         """
@@ -83,26 +97,32 @@ class RandomForest:
         :param y: label 类别或者目标值
         :return: 返回self.tree
         """
+        self.trees = []
+        self.trees_data = []
         self.sampling_with_replacement(x, y)
         for i in range(self.n_estimators):
-            Tree=Decision_Tree()
+            Tree=Decision_Tree(max_depth=self.max_depth)
             Tree.fit(self.trees_data[i][0],self.trees_data[i][1])
             self.trees.append(Tree)
+        return self
 
     def predict(self, x):
         answer=[]
-        for i in range(self.n_estimators):
-            answer.append(self.trees[i].predict(x))
-        return max(set(answer), key=answer.count)
+        for j in range(x.shape[0]):
+            prediction=[]
+            for i in range(self.n_estimators):
+                prediction.append(self.trees[i].predict(x[j:j+1])[0])
+            answer.append(max(prediction,key=prediction.count))
+        return np.array(answer)
 
 
 
 if __name__ == '__main__':
-    x=np.random.random(size=(1,100,3))
-    y=np.random.randint(size=(1,100),high=100,low=0)
+    x=np.random.random(size=(100,3))
+    y=np.random.randint(size=(100,),high=100,low=10)
 
-    x_test=np.random.random(size=(1,100,3))
-    model = RandomForest(n_estimators=10, max_depth=5, same_rate=0.5)
+    x_test=np.random.random(size=(100,3))
+    model = RandomForest(n_estimators=100, max_depth=8, same_rate=0.5)
     model.fit(x,y)
     A=model.predict(x_test)
     print(A)
