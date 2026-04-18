@@ -36,6 +36,7 @@ class Decision_Tree():
             summary+=dic[i]*dic[i]
         return 1-summary/(num_sample*num_sample)
 
+
     def calculate_Gini_Coefficient(self,y,n_dimension,left_index,right_index):
         """
             feature_label_col 传入的是dataframe     DF=df[feature_col,label_col]   废案 如果要创建多叉数的话可以这么使用
@@ -57,6 +58,9 @@ class Decision_Tree():
         gini2=self.calculate_gini(y[right_index],right_len)
         summary=(gini1*left_len+gini2*right_len)/n_dimension
         return summary
+
+
+
     def best_split(self, x, y):
         """
             决策函数 将特征列中各个分类进行各个计算得出最佳决策点 最优基尼指数
@@ -138,7 +142,7 @@ class Decision_Tree():
     def fit(self,Feature,label):
         Feature=np.array(Feature)
         label=np.array(label).reshape(-1)
-        if Feature.ndim != 2:
+        if Feature.ndim != 2:   #防止后续报错
             raise ValueError("Feature must be a 2D array with shape (n_samples, n_features).")
         if Feature.shape[0] != label.shape[0]:
             raise ValueError("Feature and label must contain the same number of samples.")
