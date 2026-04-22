@@ -83,13 +83,15 @@ class Tensor():
         result.grad_fn=calculate
         result.parent(self,)
         return result
-    """_______________ Tensor backward ___________
-        self.grad
+    """_______________ Tensor backward ________________
+     
+        
 
     """
     def backward(self,grad):
         
         if self.require_grad is None:
+
             return 
         
         if grad is None:
@@ -107,7 +109,6 @@ class Tensor():
             
             for parent,parent_grad in zip(self.parent,grads):
                 parent.backward(parent_grad)
-
 
     def backward_help(self): 
         pass
@@ -147,7 +148,7 @@ class loss():
     def __init__(self,y_predication,y_right,loss_):
         self.y_predication=y_predication
         self.y_right=y_right
-        self.Loss=loss_
+        self.Loss=loss_.data.item()
 
     def softmax(self,x):
         x=np.array(x)
@@ -157,7 +158,7 @@ class loss():
         return x
             
 
-    def item(self):
+    def item(self): 
         return self.Loss
     
     def backward(self):
@@ -181,8 +182,6 @@ class loss():
         
 
 
-        
-
 
 
 class Optimize():
@@ -190,8 +189,6 @@ class Optimize():
         return NotImplementedError
     def zero_grad(self):
         return NotImplementedError
-
-
 """
         _________________Stochastic Gradient Descent__________________
                 Generally speak,it's an optimizor to improve the model
@@ -234,28 +231,53 @@ class SGD(Optimize):
 
 
 
-
 class Adam(Optimize):
-    """______clear_grad________
-          Clear the gradient to prepare for next backward pass
-          and avoid gradient accumulation from subsequent computations.
-
-
-    """
+    
     def __init__(self,parameters,lr,beta=(0.999,0.99),eps=1e-8):
-        pass
+        self.parameters=parameters
+        self.lr =lr
+        self.beta=beta
+        self.eps=eps
+        self.grad_value_last=None
+        self.values=None
+    """Instead of SGD ,the Adam use moment estimation to help update something like weight,bias and so on ,
 
+        Formula:mt=m{t-1}*beta1-(1-beta1)*gradient
+                vt=v{t-1}*beta2-(1-beta2)*gradient^2
+        parameters update formula: w=w-lr*m_hat/(sqrt(v_hat)+eps)
+    
+    """
+  
     def step(self):
-        pass
+        m_last=0
+        v_last=0
+        time=0
+        for value in self.parameters:
+            mt=m_last*self.beta[0]-(1-self.beta[0])*value.grad
+            vt=v_last*self.beta[1]-(1-self.beta[1])*value.grad*value.grad
+            m_hat=mt*(1-(self.beta[0]**time))
+            v_hat=vt*(1-(self.beta[1]**(time*2)))
+            value.data-=self.lr*(m_hat/(np.sqrt(v_hat)+self.eps))
+            time+=1
+
+
+             
+             
+  
+    """______clear_grad________
+        Clear the gradient to prepare for next backward pass
+        and avoid gradient accumulation from subsequent computations.
+
+     Adopt a moment updater to refreash the parameters 
+        between the last parameters and the new paramerters to be given a kinds weight
+    """
     def zero_grad(self):
-        for i in range(self.dim):
-            self.grad[i]=0
+        for value in self.parameters:
+            value.grad=None
 
 
 
 
 
 if __name__=="__main__":
-    A=loss([1,2,3],[1,4,5],0)
-    print(A.backward())
-    
+    pass
