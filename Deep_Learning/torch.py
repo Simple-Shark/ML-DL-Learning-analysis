@@ -81,7 +81,7 @@ class Tensor():
         calculate=Transpose()
         result=Tensor(calculate.forward(self.data),require_grad=self.require_grad)
         result.grad_fn=calculate
-        result.parent(self,)
+        result.parent=(self,)
         return result
     """_______________ Tensor backward ________________
      
@@ -90,7 +90,7 @@ class Tensor():
     """
     def backward(self,grad):
         
-        if self.require_grad is None:
+        if not self.require_grad :
 
             return 
         
@@ -121,11 +121,11 @@ class Loss()   :
 
 class CrossEntropyLoss(Loss):
     def log_softmax(self,z):
-        self.log_sum=np.log(np.exp(np.sum(z)))
-        
-        for index,value in enumerate(z):
-            z[index]=value-self.log_sum
-        return z
+        self.log_sum=np.log(np.sum(np.exp(z)))
+        Temp=z
+        for index,value in enumerate(Temp):
+            Temp[index]=value-self.log_sum
+        return Temp
 
     def forward(self,y_predictation,y_right):
         """
@@ -134,13 +134,13 @@ class CrossEntropyLoss(Loss):
             
         """
         self.y_right=y_right
-        self.y_predication=y_predictation
+        self.y_predictation=y_predictation
         self.values=self.log_softmax(self.y_predictation)
-        
+        Loss=0
         for index,value in enumerate(self.values):
             Loss-=y_right[index]*value
         self.Loss=Loss
-        return loss(self.y_predication,self.y_right)
+        return loss(self.y_predictation,self.y_right,self.Loss)
         #return a loss class to update the parameters
         
     
@@ -153,8 +153,7 @@ class loss():
     def softmax(self,x):
         x=np.array(x)
         sum_x=sum(np.exp(x))
-        for index,value in enumerate(x):
-            x[index]=np.exp(value)/sum_x
+        for index,value in enumerate(x):            x[index]=np.exp(value)/sum_x
         return x
             
 
@@ -177,7 +176,7 @@ class loss():
             the parameters of model 
 
         """
-        grad=self.y_right-(self.y_predication)*self.softmax(self.y_predication)
+        grad=self.y_right-self.softmax(self.y_predication)
         self.y_predication.backward(grad)       
         
 
@@ -238,7 +237,8 @@ class Adam(Optimize):
         self.lr =lr
         self.beta=beta
         self.eps=eps
-        self.grad_value_last=None
+        self.v_last=None
+        self.m_last=None
         self.values=None
     """Instead of SGD ,the Adam use moment estimation to help update something like weight,bias and so on ,
 
@@ -249,14 +249,14 @@ class Adam(Optimize):
     """
   
     def step(self):
-        m_last=0
-        v_last=0
         time=0
         for value in self.parameters:
-            mt=m_last*self.beta[0]-(1-self.beta[0])*value.grad
-            vt=v_last*self.beta[1]-(1-self.beta[1])*value.grad*value.grad
-            m_hat=mt*(1-(self.beta[0]**time))
-            v_hat=vt*(1-(self.beta[1]**(time*2)))
+            mt=self.m_last*self.beta[0]+(1-self.beta[0])*value.grad
+            vt=self.v_last*self.beta[1]+(1-self.beta[1])*value.grad*value.grad
+            m_hat=mt/(1-(self.beta[0]**time))
+            v_hat=vt/(1-(self.beta[1]**(time*2)))
+            self.m_last=mt
+            self.v_last=vt
             value.data-=self.lr*(m_hat/(np.sqrt(v_hat)+self.eps))
             time+=1
 
@@ -280,4 +280,6 @@ class Adam(Optimize):
 
 
 if __name__=="__main__":
-    pass
+    a=[1,2,3,4,5]
+    B=np.sum(np.exp(a))
+    print(B)
