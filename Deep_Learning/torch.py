@@ -153,7 +153,8 @@ class loss():
     def softmax(self,x):
         x=np.array(x)
         sum_x=sum(np.exp(x))
-        for index,value in enumerate(x):            x[index]=np.exp(value)/sum_x
+        for index,value in enumerate(x):            
+            x[index]=np.exp(value)/sum_x
         return x
             
 
@@ -280,6 +281,9 @@ class Adam(Optimize):
 
 
 if __name__=="__main__":
-    a=[1,2,3,4,5]
-    B=np.sum(np.exp(a))
-    print(B)
+    data=[1,2,3,4,5]
+    data1=[[2,3,4,5,6]]
+    A=Tensor(data,require_grad=True)
+    B=Tensor(data1,require_grad=True)
+    C=A+B
+    print(C.data)
